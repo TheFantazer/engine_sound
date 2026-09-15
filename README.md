@@ -46,7 +46,9 @@ Per-cylinder events feed reduced pipe resonators with propagation delays and dam
 
 On throttle release, residual firing remains audible while RPM decreases. A separate pumping source follows rotation even during a rev-limiter fuel cut. The free-rev model includes an idle governor and asymmetric throttle opening/closing response.
 
-Transmission uses generic ratios (3.2, 2.1, 1.5, 1.18, 0.96, 0.8), a 180 ms shift with reduced acoustic load, and approximate reflected inertia. Ratio changes lower/raise RPM; over-rev downshifts are rejected. Neutral remains free revving. This is a reduced sound interaction, not a vehicle-speed or clutch simulation. Model-specific ratios are a future catalog extension.
+Transmission uses generic ratios (3.2, 2.1, 1.5, 1.18, 0.96, 0.8), a 180 ms shift with reduced acoustic load, and approximate acceleration resistance. Ratio changes lower/raise RPM; over-rev downshifts are rejected. Neutral remains free revving. Engine inertia remains independent of gear; the virtual transmission load only slows positive acceleration, so it does not artificially stretch closed-throttle coastdown. This is a reduced sound interaction, not a vehicle-speed or clutch simulation. Model-specific ratios are a future catalog extension.
+
+Engine losses separate speed-dependent friction from throttle-dependent pumping. Coefficients are generic warm-engine estimates; actual coastdown timing requires measured inertia/loss calibration.
 
 The source amplitudes, diameter losses and acoustic load are approximations. This is not a calibrated prediction of modifications or absolute SPL. Named-model acoustic profiles and most geometry settings are approximate. Full gas exchange, injection, turbochargers, bank collector topology, structural acoustics and a tuned two-stroke expansion chamber are not yet implemented.
 
@@ -56,3 +58,4 @@ The source amplitudes, diameter losses and acoustic load are approximations. Thi
 - [Architecture](docs/ARCHITECTURE.md)
 - [Research](docs/RESEARCH.md)
 - [Validation](docs/VALIDATION.md)
+- [Catalog sources and exhaust integration](docs/CATALOG_SOURCES.md)
