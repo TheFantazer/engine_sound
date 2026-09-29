@@ -77,6 +77,9 @@ export class EngineDSP {
   private seed: number
   private muffler = 0
   private airNoise = 0
+  private radiationLow = 0
+  private noiseRate: number
+  private radiationRate: number
   private dcX = 0
   private dcY = 0
   private smooth: number
@@ -85,11 +88,13 @@ export class EngineDSP {
     const c = this.config
     this.rpm = c.idle
     this.seed = seed || 1
+    this.noiseRate = 1 - Math.exp(-2 * Math.PI * 1500 / sampleRate)
+    this.radiationRate = 1 - Math.exp(-2 * Math.PI * 160 / sampleRate)
     this.smooth = 1 - Math.exp(-1 / (sampleRate * 0.02))
     this.offsets = firingAngles(c).map(x => x / (c.strokes * 180))
     this.lastLocal = new Float64Array(c.cylinders).fill(1)
     this.jitter = new Float64Array(c.cylinders).fill(1)
-    this.primary = this.offsets.map((_, i) => new Pipe(c.primaryLength * (1 + c.lengthSpread * i / Math.max(1, c.cylinders - 1)), c.primaryDiameter, c.temperature, 0.18, sampleRate))
+    this.primary = this.offsets.map((_, i) => new Pipe(c.primaryLengths?.[i] ?? c.primaryLength * (1 + c.lengthSpread * i / Math.max(1, c.cylinders - 1)), c.primaryDiameter, c.temperature, 0.18, sampleRate))
     this.tail = new Pipe(c.exhaustLength, c.primaryDiameter * 1.5, c.temperature * 0.65, c.damping, sampleRate)
     this.intake = new Resonator(intakeResonance(c), sampleRate)
   }
@@ -110,30 +115,40 @@ export class EngineDSP {
     const sourceGain = (0.15 + this.load * 0.85) * Math.sqrt(c.displacement / c.cylinders / 0.5)
     let exhaust = 0
     let intakePulse = 0
-    let mechanical = 0
+    // Block vibration follows crankshaft orders. Summing evenly spaced cylinder
+    // sinusoids used to cancel these components entirely on an inline four.
+    const crank = this.phase * c.strokes / 2
+    const mechanical = (Math.sin(2 * Math.PI * crank) * 0.04 + Math.sin(4 * Math.PI * crank) * 0.025) * Math.sqrt(this.rpm / 3000)
     for (let i = 0; i < c.cylinders; i++) {
       const local = (this.phase - this.offsets[i] + 1) % 1
       if (local < this.lastLocal[i]) this.jitter[i] = 1 + this.random() * c.roughness
       this.lastLocal[i] = local
       // Smooth compact pulse: bounded derivative, finite width. Not a Dirac click.
       const x = local / width
-      const pulse = x < 1 ? Math.sin(Math.PI * x) ** 2 * Math.exp(-3 * x) * 5 : 0
+      // Smooth opening followed by a pressure decay. Load changes the transient
+      // shape (and hence timbre), not only source volume. Coefficients are estimated.
+      const opening = 9 + 15 * this.load
+      const pulse = x < 1 ? (1 - Math.exp(-opening * x)) ** 2 * Math.exp(-(3 + 2 * this.load) * x) * (1 - x) ** 2 * 3 : 0
+      const turbulence = pulse * this.random() * (0.025 + 0.14 * this.load)
       // Rotation still pumps gas during a limiter fuel cut: this source does not depend on combustion.
       const pumping = local < 0.4 ? Math.sin(local / 0.4 * 2 * Math.PI) * Math.sin(local / 0.4 * Math.PI) ** 2 : 0
       const pumpingGain = 0.06 * Math.sqrt(c.displacement / c.cylinders / 0.5) * Math.sqrt(this.rpm / c.redline)
-      exhaust += this.primary[i].process(pulse * sourceGain * this.jitter[i] * this.fuel + pumping * pumpingGain)
+      exhaust += this.primary[i].process((pulse + turbulence) * sourceGain * this.jitter[i] * this.fuel + pumping * pumpingGain)
       const intakePhase = (local + 0.5) % 1
       intakePulse += intakePhase < 0.28 ? Math.sin(intakePhase / 0.28 * Math.PI) ** 2 : 0
-      mechanical += Math.sin(2 * Math.PI * local) * 0.035 + Math.sin(4 * Math.PI * local) * 0.025
     }
     const noise = this.random()
-    this.airNoise += 0.18 * (noise - this.airNoise)
+    this.airNoise += this.noiseRate * (noise - this.airNoise)
     const flow = this.airNoise * (0.015 + 0.15 * this.load ** 2) * Math.sqrt(this.rpm / 3000)
     exhaust = this.tail.process(exhaust / Math.sqrt(c.cylinders) + flow)
     const cutoff = 650 + (1 - c.damping) ** 2 * 10000
     this.muffler += (1 - Math.exp(-2 * Math.PI * cutoff / this.sampleRate)) * (exhaust - this.muffler)
     const intake = this.intake.process((intakePulse / Math.sqrt(c.cylinders) + this.airNoise * 0.3) * (0.08 + this.load * 0.5))
-    const mixed = this.muffler * c.exhaustLevel + intake * c.intakeLevel + mechanical * c.mechanicalLevel
+    // Reduced outlet-radiation high pass; preserves pulse rhythm while reducing
+    // the overly rounded low-frequency tone. Not a measured R1 transfer function.
+    this.radiationLow += this.radiationRate * (this.muffler - this.radiationLow)
+    const radiated = this.muffler - 0.8 * this.radiationLow
+    const mixed = radiated * c.exhaustLevel + intake * c.intakeLevel + mechanical * c.mechanicalLevel
     // Remove DC before the output protection; absolute sound pressure is not calibrated.
     const dc = mixed - this.dcX + 0.995 * this.dcY
     this.dcX = mixed; this.dcY = dc

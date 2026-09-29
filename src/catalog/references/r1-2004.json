@@ -1,0 +1,117 @@
+{
+  "modelId": "r1-2004",
+  "dyno": {
+    "source": "https://www.revzilla.com/assets/0001/1090/two_brothers_m2_vale_slip_on_exhaust_yamaha_r120042006.pdf",
+    "run": "Stock Dynorun.002 (table label; plot search metadata uses .003)",
+    "units": [
+      "rpm",
+      "rear-wheel mechanical hp, SAE corrected"
+    ],
+    "points": [
+      [
+        3000,
+        24.6
+      ],
+      [
+        3500,
+        26.9
+      ],
+      [
+        4000,
+        34.5
+      ],
+      [
+        4500,
+        46.4
+      ],
+      [
+        5000,
+        58.6
+      ],
+      [
+        5500,
+        68.0
+      ],
+      [
+        6000,
+        76.0
+      ],
+      [
+        6500,
+        81.7
+      ],
+      [
+        7000,
+        82.6
+      ],
+      [
+        7500,
+        93.5
+      ],
+      [
+        8000,
+        111.1
+      ],
+      [
+        8500,
+        118.2
+      ],
+      [
+        9000,
+        126.3
+      ],
+      [
+        9500,
+        134.4
+      ],
+      [
+        10000,
+        144.1
+      ],
+      [
+        10500,
+        148.5
+      ],
+      [
+        11000,
+        151.5
+      ],
+      [
+        11500,
+        152.7
+      ],
+      [
+        12000,
+        152.0
+      ],
+      [
+        12500,
+        149.9
+      ]
+    ],
+    "conversion": "crank Nm = wheel hp * 745.6998715822702 / (rpm * pi/30) / assumed efficiency 0.94",
+    "notes": "Single stock dyno run. Constant efficiency is an estimate, not a measured drivetrain-loss curve. Below 3000 and above 12500 RPM remain estimates."
+  },
+  "manual": {
+    "source": "https://www.slideshare.net/slideshow/yamaha-yzf-r1-2004-service-manual-lit-11616-17-55-5-vy-28197-10/5426750",
+    "pages": [
+      "2-1",
+      "2-2"
+    ],
+    "wetMassKg": 193,
+    "market": "USA; California model is 194 kg",
+    "idleRangeRpm": [
+      1150,
+      1250
+    ],
+    "riderMassKgAssumed": 75
+  },
+  "audioReference": {
+    "url": "https://www.youtube.com/watch?v=fcTdiQUljwQ",
+    "title": "2004 Yamaha R1 Walk Around + Exhaust - High Definition - HD",
+    "uploader": "HottBoysRacing",
+    "declaredConfiguration": "Completely stock",
+    "declaredCamera": "Panasonic HDC600",
+    "status": "Metadata verified; waveform, tachometer visibility, exact RPM/load and microphone distance not analysed. Not used to fit acoustic coefficients."
+  }
+}

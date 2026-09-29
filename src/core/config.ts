@@ -1,4 +1,6 @@
 export interface EngineConfig {
+  firingOffsets?: number[] // crank degrees, one per cylinder, overrides named pattern
+  primaryLengths?: number[] // metres, same cylinder order as firingOffsets
   cylinders: number
   strokes: 2 | 4
   displacement: number // total litres
@@ -53,11 +55,20 @@ export function normalizeConfig(input: unknown): EngineConfig {
   result.firing = data.firing === 'crossplane' && result.cylinders === 4 && result.strokes === 4
     ? 'crossplane' : data.firing === 'twin270' && result.cylinders === 2 && result.strokes === 4
       ? 'twin270' : 'even'
+  if (Array.isArray(data.firingOffsets) && data.firingOffsets.length === result.cylinders
+    && data.firingOffsets.every(x => typeof x === 'number' && Number.isFinite(x) && x >= 0 && x < result.strokes * 180)) {
+    result.firingOffsets = [...data.firingOffsets]
+  }
+  if (Array.isArray(data.primaryLengths) && data.primaryLengths.length === result.cylinders
+    && data.primaryLengths.every(x => typeof x === 'number' && Number.isFinite(x) && x >= .15 && x <= 1.8)) {
+    result.primaryLengths = [...data.primaryLengths]
+  }
   return result
 }
 
 /** Angles in crank degrees; ignition reference. Exhaust timing is a fixed offset in v1. */
 export function firingAngles(config: EngineConfig): number[] {
+  if (config.firingOffsets) return [...config.firingOffsets]
   if (config.firing === 'crossplane') return [0, 270, 450, 540]
   if (config.firing === 'twin270') return [0, 270]
   return Array.from({ length: config.cylinders }, (_, i) => i * config.strokes * 180 / config.cylinders)

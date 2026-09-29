@@ -1,14 +1,8 @@
+import { loadCatalog } from './schema'
+export type { VehicleModel } from './schema'
 import { DEFAULT_CONFIG, normalizeConfig, type EngineConfig } from '../core/config'
 
 export interface EngineTemplate { id: string; name: string; config: EngineConfig }
-export interface VehicleModel {
-  id: string
-  category: 'cars' | 'motorcycles' | 'other'
-  manufacturer: string
-  name: string
-  config: EngineConfig
-  source: string
-}
 export interface SavedEngine { id: string; name: string; config: EngineConfig }
 const config = (overrides: Partial<EngineConfig>) => normalizeConfig({ ...DEFAULT_CONFIG, ...overrides })
 
@@ -25,8 +19,5 @@ export const CATEGORIES = [
   { id: 'motorcycles', name: 'Motorcycles' },
   { id: 'other', name: 'Other' },
 ] as const
-export const MODELS: VehicleModel[] = [{
-  id: 'r1', category: 'motorcycles', manufacturer: 'Yamaha', name: 'YZF-R1',
-  source: 'https://cdn2.yamaha-motor.eu/prod/product-assets/2017/YZF1000R1/Factsheets/2017-YZF1000R1_en.pdf',
-  config: config({ cylinders: 4, displacement: 0.998, firing: 'crossplane', idle: 1250, redline: 14000, primaryLength: 0.45, primaryDiameter: 35, exhaustLength: 0.9, damping: 0.3, pulseWidth: 45, intakeLength: 0.16, plenumVolume: 1.5, roughness: 0.04, inertia: 0.1 }),
-}]
+// Every JSON file is discovered at build time; no per-model application code.
+export const MODELS = loadCatalog(import.meta.glob('./models/*.json', { eager: true, import: 'default' }))

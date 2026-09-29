@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "id": "r1",
+  "vehicle": {
+    "ratios": [
+      0,
+      2.6,
+      2.176470588235294,
+      1.8421052631578947,
+      1.5789473684210527,
+      1.380952380952381,
+      1.25
+    ],
+    "primary": 1.6341463414634145,
+    "finalDrive": 2.5625,
+    "maxDriveAcceleration": 9.3,
+    "radius": 0.31,
+    "mass": 275,
+    "dragArea": 0.32,
+    "rolling": 0.015,
+    "efficiency": 0.94,
+    "brakeDeceleration": 8,
+    "torqueCurve": [
+      [
+        1250,
+        35
+      ],
+      [
+        4000,
+        65
+      ],
+      [
+        7000,
+        88
+      ],
+      [
+        9500,
+        104
+      ],
+      [
+        11500,
+        112.4
+      ],
+      [
+        13500,
+        104.05196501696803
+      ],
+      [
+        14000,
+        98
+      ]
+    ],
+    "control": {
+      "shiftSeconds": 0.18,
+      "throttleOpenSeconds": 0.09,
+      "throttleCloseSeconds": 0.035,
+      "clutchBase": 0.3,
+      "clutchPreload": 0.4,
+      "clutchSpeedGain": 2,
+      "clutchLockSpeed": 30,
+      "preloadRpmFraction": 0.5357142857142857,
+      "frictionScale": 1,
+      "pumpingScale": 1,
+      "launchRpmRetention": 0.85,
+      "slipResponseSeconds": 0.12,
+      "launchRpmFollow": 0.15,
+      "launchRpmRiseFraction": 0.45
+    }
+  },
+  "category": "motorcycles",
+  "manufacturer": "Yamaha",
+  "name": "YZF-R1 · 2017",
+  "source": "https://cdn2.yamaha-motor.eu/prod/product-assets/2017/YZF1000R1/Factsheets/2017-YZF1000R1_en.pdf",
+  "config": {
+    "cylinders": 4,
+    "strokes": 4,
+    "displacement": 0.998,
+    "idle": 1250,
+    "redline": 14000,
+    "firing": "crossplane",
+    "primaryLength": 0.45,
+    "primaryDiameter": 35,
+    "lengthSpread": 0,
+    "exhaustLength": 0.9,
+    "damping": 0.3,
+    "intakeLength": 0.16,
+    "intakeDiameter": 45,
+    "plenumVolume": 1.5,
+    "temperature": 450,
+    "pulseWidth": 45,
+    "roughness": 0.04,
+    "inertia": 0.1,
+    "intakeLevel": 0.35,
+    "exhaustLevel": 0.8,
+    "mechanicalLevel": 0.12
+  },
+  "calibration": {
+    "status": "estimated",
+    "notes": "Published gearbox and peak torque/power anchors; intermediate torque, wet mass with rider, aero, clutch and acoustics are estimates."
+  }
+}

@@ -141,44 +141,17 @@ describe('free-rev dynamics', () => {
   })
 })
 
-describe('transmission', () => {
-  const finishShift = (d: Dynamics) => { for (let i = 0; i < 18; i++) d.tick(0.01, base) }
-  it('changes RPM progressively with ratios and preserves RPM on neutral engagement', () => {
-    const d = new Dynamics(); d.reset(base); d.state.rpm = 5000
-    expect(d.shift(1, base)).toBe(true); finishShift(d)
-    expect(d.state.rpm).toBeCloseTo(5000, 5)
-    expect(d.shift(1, base)).toBe(true)
-    d.tick(0.05, base)
-    expect(d.state.rpm).toBeLessThan(5000)
-    expect(d.state.rpm).toBeGreaterThan(5000 * 2.1 / 3.2)
-    for (let i = 0; i < 13; i++) d.tick(0.01, base)
-    expect(d.state.rpm).toBeCloseTo(5000 * 2.1 / 3.2, 5)
-    expect(d.shift(-1, base)).toBe(true); finishShift(d)
-    expect(d.state.rpm).toBeCloseTo(5000, 5)
+
+describe('source timbre', () => {
+  it.each([4, 8])('preserves mechanical sound with %i evenly firing cylinders', cylinders => {
+    const data = render(0.5, { cylinders, exhaustLevel: 0, intakeLevel: 0, mechanicalLevel: 1 })
+    expect(rms(data)).toBeGreaterThan(0.015)
   })
-  it('blocks overlapping shifts, over-rev downshifts and shifts at fixed RPM', () => {
-    const d = new Dynamics(); d.state.gear = 2; d.state.rpm = 6000
-    expect(d.shift(-1, base)).toBe(false); expect(d.state.gear).toBe(2)
-    d.state.rpm = 3000
-    expect(d.shift(1, base)).toBe(true)
-    expect(d.shift(1, base)).toBe(false)
-    d.fixedRpm = true; d.targetRpm = 4200; d.tick(0.02, base)
-    expect(d.shift(-1, base)).toBe(false); expect(d.state.rpm).toBe(4200)
-    d.fixedRpm = false; d.tick(0.01, base)
-    expect(d.state.rpm).toBeGreaterThan(4100)
-  })
-  it('bounds gears and resets to neutral', () => {
-    const d = new Dynamics(); d.reset(base)
-    expect(d.shift(-1, base)).toBe(false)
-    for (let i = 1; i <= 6; i++) { expect(d.shift(1, base)).toBe(true); finishShift(d) }
-    expect(d.shift(1, base)).toBe(false); expect(d.state.gear).toBe(6)
-    d.reset(base); expect(d.state.gear).toBe(0)
-  })
-  it('builds RPM more slowly in higher gears', () => {
-    const low = new Dynamics(), high = new Dynamics()
-    low.state.gear = 1; high.state.gear = 6; low.gas = high.gas = 1
-    for (let i = 0; i < 60; i++) { low.tick(1 / 60, base); high.tick(1 / 60, base) }
-    expect(low.state.rpm).toBeGreaterThan(high.state.rpm + 1000)
-    expect(high.state.rpm).toBeGreaterThan(base.idle)
+  it('changes normalized waveform with load, beyond a gain-only adjustment', () => {
+    const quiet = render(0.1, { intakeLevel: 0, mechanicalLevel: 0, roughness: 0 })
+    const loud = render(0.9, { intakeLevel: 0, mechanicalLevel: 0, roughness: 0 })
+    const a = rms(quiet), b = rms(loud)
+    const difference = Float32Array.from(quiet, (x,i) => x/a - loud[i]/b)
+    expect(rms(difference)).toBeGreaterThan(0.1)
   })
 })

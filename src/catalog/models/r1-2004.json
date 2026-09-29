@@ -1,0 +1,161 @@
+{
+  "schemaVersion": 1,
+  "id": "r1-2004",
+  "vehicle": {
+    "ratios": [
+      0,
+      2.533333333333333,
+      2.0625,
+      1.7619047619047619,
+      1.5217391304347827,
+      1.3636363636363635,
+      1.2692307692307692
+    ],
+    "primary": 1.5116279069767442,
+    "finalDrive": 2.6470588235294117,
+    "radius": 0.305,
+    "mass": 268,
+    "dragArea": 0.3,
+    "rolling": 0.015,
+    "efficiency": 0.94,
+    "brakeDeceleration": 8,
+    "maxDriveAcceleration": 9.3,
+    "torqueCurve": [
+      [
+        1200,
+        35
+      ],
+      [
+        3000,
+        62.11857
+      ],
+      [
+        3500,
+        58.22263
+      ],
+      [
+        4000,
+        65.33813
+      ],
+      [
+        4500,
+        78.11116
+      ],
+      [
+        5000,
+        88.7841
+      ],
+      [
+        5500,
+        93.65993
+      ],
+      [
+        6000,
+        95.95551
+      ],
+      [
+        6500,
+        95.2174
+      ],
+      [
+        7000,
+        89.39014
+      ],
+      [
+        7500,
+        94.44043
+      ],
+      [
+        8000,
+        105.20386
+      ],
+      [
+        8500,
+        105.34311
+      ],
+      [
+        9000,
+        106.30861
+      ],
+      [
+        9500,
+        107.17247
+      ],
+      [
+        10000,
+        109.16202
+      ],
+      [
+        10500,
+        107.1383
+      ],
+      [
+        11000,
+        104.33441
+      ],
+      [
+        11500,
+        100.58861
+      ],
+      [
+        12000,
+        95.95551
+      ],
+      [
+        12500,
+        90.84462
+      ],
+      [
+        13750,
+        82
+      ]
+    ],
+    "control": {
+      "shiftSeconds": 0.18,
+      "throttleOpenSeconds": 0.09,
+      "throttleCloseSeconds": 0.035,
+      "clutchBase": 0.3,
+      "clutchPreload": 0.4,
+      "clutchSpeedGain": 2,
+      "clutchLockSpeed": 30,
+      "preloadRpmFraction": 0.5454545454545454,
+      "frictionScale": 1,
+      "pumpingScale": 1,
+      "launchRpmRetention": 0.85,
+      "slipResponseSeconds": 0.12,
+      "launchRpmFollow": 0.15,
+      "launchRpmRiseFraction": 0.45
+    }
+  },
+  "category": "motorcycles",
+  "manufacturer": "Yamaha",
+  "name": "YZF-R1 · 2004 RN12",
+  "source": "https://global.yamaha-motor.com/news/2003/1022/tms-03.html",
+  "config": {
+    "cylinders": 4,
+    "strokes": 4,
+    "displacement": 0.998,
+    "idle": 1200,
+    "redline": 13750,
+    "firing": "even",
+    "primaryLength": 0.5,
+    "primaryDiameter": 35,
+    "lengthSpread": 0,
+    "exhaustLength": 1.4,
+    "damping": 0.4,
+    "intakeLength": 0.18,
+    "intakeDiameter": 45,
+    "plenumVolume": 1.5,
+    "temperature": 450,
+    "pulseWidth": 55,
+    "roughness": 0.04,
+    "inertia": 0.1,
+    "intakeLevel": 0.35,
+    "exhaustLevel": 0.8,
+    "mechanicalLevel": 0.12
+  },
+  "calibration": {
+    "status": "estimated",
+    "notes": "Stock Two Brothers R1 2004 dyno table (3000–12500 rpm) converted from SAE rear-wheel hp to estimated crank torque using efficiency 0.94. Yamaha service manual: USA wet mass 193 kg + assumed rider 75 kg, idle midpoint 1200 rpm. Curve tails, drag, loaded radius, clutch and acoustic geometry remain estimated. See src/catalog/references/r1-2004.json for provenance; sound recording located but not spectrally calibrated."
+  }
+}

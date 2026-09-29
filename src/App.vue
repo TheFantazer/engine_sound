@@ -2,8 +2,9 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import RangeControl from './components/RangeControl.vue'
 import Tachometer from './components/Tachometer.vue'
-import { DEFAULT_CONFIG, normalizeConfig, decodeConfig, encodeConfig, type EngineConfig } from './core/config'
+import { DEFAULT_CONFIG, firingAngles, normalizeConfig, decodeConfig, encodeConfig, type EngineConfig } from './core/config'
 import { Dynamics } from './core/dynamics'
+import { DEFAULT_VEHICLE } from './core/vehicle'
 import { AudioController } from './audio/controller'
 import { CATEGORIES, MODELS, TEMPLATES, type SavedEngine, type VehicleModel } from './catalog/presets'
 
@@ -20,6 +21,7 @@ const volume = ref(35)
 const running = ref(false)
 const busy = ref(false)
 const gas = ref(false)
+const braking = ref(false)
 const message = ref('')
 const error = ref('')
 const saveOpen = ref(false)
@@ -42,7 +44,13 @@ const catalog = computed(() => CATEGORIES.map(category => {
   return { ...category, brands, count: models.length }
 }).filter(category => !query.value || category.count > 0))
 const savedMatches = computed(() => saved.value.filter(item => item.name.toLowerCase().includes(query.value)))
-const firingText = computed(() => config.value.firing === 'crossplane' ? '270 / 180 / 90 / 180°' : config.value.firing === 'twin270' ? '270 / 450°' : `${(config.value.strokes * 180 / config.value.cylinders).toFixed(0)}° even`)
+const firingText = computed(() => {
+  const c = config.value
+  const angles = firingAngles(c).sort((a,b) => a-b)
+  const cycle = c.strokes * 180
+  const intervals = angles.map((angle,i) => ((angles[(i+1)%angles.length] - angle + cycle) % cycle) || cycle)
+  return intervals.every(x => Math.abs(x-intervals[0]) < .01) ? `${intervals[0].toFixed(0)}° even` : `${intervals.map(x=>Number(x.toFixed(1))).join(' / ')}°`
+})
 const modelSpecs = computed(() => [
   ['Cylinders', String(config.value.cylinders)],
   ['Displacement', `${config.value.displacement} L`],
@@ -58,7 +66,10 @@ function store() {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 2, custom: customConfig.value, modelId: modelId.value, templateId: templateId.value, saved: saved.value })) }
   catch { toast('Settings could not be saved on this device.') }
 }
-function release() { gas.value = false; dynamics.gas = 0 }
+function releaseGas() { gas.value = false; dynamics.gas = 0 }
+function releaseBrake() { braking.value = false; dynamics.brake = 0 }
+function release() { releaseGas(); releaseBrake() }
+function pressBrake() { if (running.value && !fixedRpm.value && !busy.value) { braking.value = true } }
 function setFixedTarget(event: Event) {
   const input = event.target as HTMLInputElement
   const value = Number(input.value)
@@ -98,6 +109,8 @@ async function toggleAudio() {
   try {
     if (running.value) { release(); await audio.stop(); running.value = false; dynamics.reset(config.value) }
     else {
+      dynamics.vehicle = current.value?.vehicle ?? DEFAULT_VEHICLE
+      dynamics.brake = braking.value && !fixedRpm.value ? 1 : 0
       dynamics.fixedRpm = fixedRpm.value; dynamics.targetRpm = targetRpm.value
       state.value = { ...dynamics.tick(1 / 240, config.value) }
       await audio.start({ ...config.value }, { ...state.value })
@@ -128,17 +141,21 @@ function shiftGear(direction: -1 | 1) {
   focusEngine()
 }
 function keydown(event: KeyboardEvent) {
-  if (!['Space', 'ArrowUp', 'ArrowDown'].includes(event.code) || event.ctrlKey || event.metaKey || event.altKey) return
+  if (!['Space', 'ArrowUp', 'ArrowDown', 'KeyB'].includes(event.code) || event.ctrlKey || event.metaKey || event.altKey) return
   const target = event.target as HTMLElement | null
-  if (target?.closest('input, textarea, select, button, a, summary, [contenteditable="true"]')) return
+  if (target?.closest('input, textarea, select, a, summary, [contenteditable="true"]')) return
+  if (event.code === 'Space' && target?.closest('button')) return
   event.preventDefault()
   if (event.code === 'Space') press()
+  else if (event.code === 'KeyB') pressBrake()
   else if (!event.repeat) shiftGear(event.code === 'ArrowUp' ? 1 : -1)
 }
-function keyup(event: KeyboardEvent) { if (event.code === 'Space') release() }
+function keyup(event: KeyboardEvent) { if (event.code === 'Space') releaseGas(); if (event.code === 'KeyB') releaseBrake() }
 function hidden() { release(); if (document.hidden && running.value && !busy.value) void toggleAudio() }
 function animate(time: number) {
   const dt = last ? (time - last) / 1000 : 1 / 60; last = time
+  dynamics.vehicle = current.value?.vehicle ?? DEFAULT_VEHICLE
+  dynamics.brake = braking.value && !fixedRpm.value ? 1 : 0
   dynamics.fixedRpm = fixedRpm.value; dynamics.targetRpm = targetRpm.value; dynamics.gas = gas.value && !fixedRpm.value ? 1 : 0
   if (running.value) {
     state.value = { ...dynamics.tick(dt, config.value) }; audio.updateState(state.value)
@@ -215,10 +232,12 @@ onUnmounted(() => {
         <div class="gear-controls" aria-label="Transmission">
           <button class="plain-button" aria-label="Shift down" :disabled="!running || fixedRpm || busy || state.gear === 0" @click="shiftGear(-1)">− <kbd>↓</kbd></button>
           <span class="gear-readout">Gear <strong aria-label="Current gear">{{ state.gear === 0 ? 'N' : state.gear }}</strong></span>
-          <button class="plain-button" aria-label="Shift up" :disabled="!running || fixedRpm || busy || state.gear === 6" @click="shiftGear(1)">＋ <kbd>↑</kbd></button>
+          <button class="plain-button" aria-label="Shift up" :disabled="!running || fixedRpm || busy || state.gear >= (current?.vehicle ?? DEFAULT_VEHICLE).ratios.length - 1" @click="shiftGear(1)">＋ <kbd>↑</kbd></button>
         </div>
         <button class="start-button" @click="toggleAudio" :disabled="busy">{{ running ? 'Stop engine' : 'Start engine' }}</button>
-        <button class="gas-pedal" :class="{ pressed: gas }" :disabled="!running || fixedRpm || busy" @pointerdown="event => { if (event.button === 0) { press(); (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId) } }" @pointerup="release" @pointercancel="release" @lostpointercapture="release" @keydown.space.prevent="press" @keyup.space.prevent="release" @keydown.enter.prevent="press" @keyup.enter.prevent="release" @blur="release"><span>{{ gas ? 'Throttle open' : 'Hold to rev' }}</span><kbd>Space</kbd></button>
+        <button class="gas-pedal" :class="{ pressed: gas }" :disabled="!running || fixedRpm || busy" @pointerdown="event => { if (event.button === 0) { press(); (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId) } }" @pointerup="releaseGas" @pointercancel="releaseGas" @lostpointercapture="releaseGas" @keydown.space.prevent="press" @keyup.space.prevent="releaseGas" @keydown.enter.prevent="press" @keyup.enter.prevent="releaseGas" @blur="release"><span>{{ gas ? 'Throttle open' : 'Hold to rev' }}</span><kbd>Space</kbd></button>
+        <button class="brake-pedal" :class="{ pressed: braking }" :disabled="!running || fixedRpm || busy" @pointerdown="event => { if (event.button === 0) { pressBrake(); (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId) } }" @pointerup="releaseBrake" @pointercancel="releaseBrake" @lostpointercapture="releaseBrake" @keydown.space.prevent="pressBrake" @keyup.space.prevent="releaseBrake" @keydown.enter.prevent="pressBrake" @keyup.enter.prevent="releaseBrake" @blur="releaseBrake"><span>{{ braking ? 'Braking' : 'Hold to brake' }}</span><kbd>B</kbd></button>
+        <p class="vehicle-speed" aria-label="Vehicle speed">{{ Math.round(state.speed * 3.6) }} km/h</p>
         <div class="fixed-controls"><label class="checkbox-label"><input v-model="fixedRpm" type="checkbox" />Fixed RPM</label><div v-if="fixedRpm" class="fixed-input"><input aria-label="Fixed RPM value" type="number" v-model="rpmDraft" :min="config.idle" :max="config.redline" :step="50" @change="setFixedTarget" /><span>rpm</span></div></div>
         <RangeControl v-if="fixedRpm" label="Target RPM" v-model="targetRpm" :min="config.idle" :max="config.redline" :step="50" unit="rpm" />
         <div class="volume-control"><RangeControl label="Volume" v-model="volume" :min="0" :max="100" unit="%" /></div>
@@ -231,9 +250,9 @@ onUnmounted(() => {
         <label class="field-label" for="template">Starting point</label><select id="template" v-model="templateId" @change="applyTemplate"><option value="" disabled>Modified</option><option v-for="item in TEMPLATES" :key="item.id" :value="item.id">{{ item.name }}</option></select>
         <div class="basic-settings"><div class="two-fields"><div><label class="field-label" for="cylinders">Cylinders</label><select id="cylinders" v-model.number="config.cylinders"><option v-for="n in 12" :key="n" :value="n">{{ n }}</option></select></div><div><label class="field-label" for="cycle">Cycle</label><select id="cycle" v-model.number="config.strokes"><option :value="4">4-stroke</option><option :value="2">2-stroke</option></select></div></div>
           <RangeControl label="Displacement" v-model="config.displacement" :min="0.05" :max="10" :step="0.05" unit="L" />
-          <label class="field-label" for="firing">Firing intervals</label><select id="firing" v-model="config.firing"><option value="even">Even</option><option v-if="config.cylinders === 4 && config.strokes === 4" value="crossplane">Crossplane · 270 / 180 / 90 / 180°</option><option v-if="config.cylinders === 2 && config.strokes === 4" value="twin270">Twin · 270 / 450°</option></select>
+          <label class="field-label" for="firing">Firing intervals</label><p v-if="config.firingOffsets" class="field-label">Model timing: {{ firingText }}. Selecting a pattern replaces it.</p><select id="firing" v-model="config.firing" @change="delete config.firingOffsets"><option value="even">Even</option><option v-if="config.cylinders === 4 && config.strokes === 4" value="crossplane">Crossplane · 270 / 180 / 90 / 180°</option><option v-if="config.cylinders === 2 && config.strokes === 4" value="twin270">Twin · 270 / 450°</option></select>
         </div>
-        <details class="settings-section"><summary>Exhaust</summary><div class="detail-content"><RangeControl label="Primary pipe length" v-model="config.primaryLength" :min="0.15" :max="1.8" :step="0.01" unit="m" /><RangeControl label="Primary pipe diameter" v-model="config.primaryDiameter" :min="20" :max="90" unit="mm" /><RangeControl label="Pipe length variation" v-model="config.lengthSpread" :min="0" :max="0.8" :step="0.01" unit="×" /><RangeControl label="Tailpipe length" v-model="config.exhaustLength" :min="0.25" :max="4" :step="0.05" unit="m" /><RangeControl label="Muffler absorption" v-model="config.damping" :min="0.05" :max="0.95" :step="0.01" unit="×" /></div></details>
+        <details class="settings-section"><summary>Exhaust</summary><div class="detail-content"><p v-if="config.primaryLengths" class="field-label">Individual pipe lengths: {{ config.primaryLengths.join(' / ') }} m. <button class="plain-button" @click="delete config.primaryLengths">Use shared lengths</button></p><RangeControl label="Primary pipe length" :disabled="!!config.primaryLengths" v-model="config.primaryLength" :min="0.15" :max="1.8" :step="0.01" unit="m" /><RangeControl label="Primary pipe diameter" v-model="config.primaryDiameter" :min="20" :max="90" unit="mm" /><RangeControl label="Pipe length variation" :disabled="!!config.primaryLengths" v-model="config.lengthSpread" :min="0" :max="0.8" :step="0.01" unit="×" /><RangeControl label="Tailpipe length" v-model="config.exhaustLength" :min="0.25" :max="4" :step="0.05" unit="m" /><RangeControl label="Muffler absorption" v-model="config.damping" :min="0.05" :max="0.95" :step="0.01" unit="×" /></div></details>
         <details class="settings-section"><summary>Intake</summary><div class="detail-content"><RangeControl label="Runner length" v-model="config.intakeLength" :min="0.08" :max="0.8" :step="0.01" unit="m" /><RangeControl label="Runner diameter" v-model="config.intakeDiameter" :min="20" :max="90" unit="mm" /><RangeControl label="Plenum volume" v-model="config.plenumVolume" :min="0.2" :max="12" :step="0.1" unit="L" /></div></details>
         <details class="settings-section"><summary>Combustion & dynamics</summary><div class="detail-content"><RangeControl label="Exhaust pulse width" v-model="config.pulseWidth" :min="20" :max="140" unit="°" hint="Pulse shape, not fuel injection duration." /><RangeControl label="Cycle variation" v-model="config.roughness" :min="0" :max="0.4" :step="0.01" unit="×" /><RangeControl label="Exhaust temperature" v-model="config.temperature" :min="20" :max="850" :step="10" unit="°C" /><RangeControl label="Rotational inertia" v-model="config.inertia" :min="0.05" :max="0.8" :step="0.01" unit="kg·m²" /><RangeControl label="Idle speed" v-model="config.idle" :min="500" :max="2200" :step="50" unit="rpm" /><RangeControl label="Redline" v-model="config.redline" :min="3000" :max="16000" :step="100" unit="rpm" /></div></details>
         <details class="settings-section"><summary>Sound levels</summary><div class="detail-content"><RangeControl label="Exhaust level" v-model="config.exhaustLevel" :min="0" :max="1" :step="0.01" unit="×" /><RangeControl label="Intake level" v-model="config.intakeLevel" :min="0" :max="1" :step="0.01" unit="×" /><RangeControl label="Mechanical level" v-model="config.mechanicalLevel" :min="0" :max="1" :step="0.01" unit="×" /></div></details>
